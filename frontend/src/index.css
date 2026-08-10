@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 font-sans antialiased selection:bg-teal-500 selection:text-white min-h-screen;
+    background-image: radial-gradient(at 0% 0%, rgba(20, 184, 166, 0.05) 0px, transparent 50%),
+                      radial-gradient(at 100% 100%, rgba(14, 165, 233, 0.05) 0px, transparent 50%);
+  }
+}
+
+/* Custom gauge animation */
+@keyframes stroke-draw {
+  from {
+    stroke-dashoffset: 283;
+  }
+}
+
+.animate-gauge {
+  animation: stroke-draw 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Custom slider aesthetics */
+input[type=range] {
+  @apply h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2;
+}
+
+/* Glassmorphism utility */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
