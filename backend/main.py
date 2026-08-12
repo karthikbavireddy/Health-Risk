@@ -12,17 +12,37 @@ from pydantic import BaseModel, Field, field_validator
 
 # Load environment variables from .env (including DATABASE_URL)
 from dotenv import load_dotenv
-load_dotenv()
+
+# Search for .env in current file's directory first
+env_backend = os.path.join(os.path.dirname(__file__), '.env')
+if os.path.exists(env_backend):
+    load_dotenv(env_backend, override=True)
+else:
+    load_dotenv(override=True)
+
+
+def clean_database_url(url: str) -> str:
+    if not url:
+        return url
+    url = url.strip().strip("'").strip('"')
+    # Fix duplicate sslmode prefixes if environment variable was malformed
+    while 'sslmode=sslmode=' in url:
+        url = url.replace('sslmode=sslmode=', 'sslmode=')
+    if url.count('?') > 1:
+        parts = url.split('?', 1)
+        url = parts[0] + '?' + parts[1].replace('?', '&')
+    return url
 
 
 # Paths
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 MODEL_PATH = os.path.join(BASE_DIR, 'model', 'model.pkl')
 ENCODERS_PATH = os.path.join(BASE_DIR, 'model', 'encoders.pkl')
-# DATABASE_URL is read from environment – no local file path needed
-DATABASE_URL = os.getenv('DATABASE_URL')
-if not DATABASE_URL:
+# DATABASE_URL is read from environment – sanitized for libpq/psycopg2
+RAW_DATABASE_URL = os.getenv('DATABASE_URL')
+if not RAW_DATABASE_URL:
     raise RuntimeError('DATABASE_URL environment variable is not set')
+DATABASE_URL = clean_database_url(RAW_DATABASE_URL)
 
 app = FastAPI(
     title="AI Health Risk Predictor API",
@@ -56,8 +76,8 @@ import psycopg2
 import psycopg2.extras
 
 def get_db():
-    # Connect to Postgres using the DATABASE_URL from .env
-    conn = psycopg2.connect(DATABASE_URL)
+    # Connect to Postgres using the sanitized DATABASE_URL
+    conn = psycopg2.connect(clean_database_url(DATABASE_URL))
     # Use RealDictCursor for convenient dict rows
     conn.autocommit = True
     return conn
@@ -248,7 +268,8 @@ def predict_risk(data: RiskPredictionInput):
         ))
         result = cursor.fetchone()
         prediction_id = result['id']
-        created_at = result['created_at']
+        raw_created_at = result['created_at']
+        created_at = raw_created_at.isoformat() if hasattr(raw_created_at, 'isoformat') else (str(raw_created_at) if raw_created_at else None)
         # No explicit commit needed because autocommit is on
         conn.close()
 
